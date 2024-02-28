@@ -78,6 +78,65 @@ impl MemorySet {
             PTEFlags::R | PTEFlags::X,
         );
     }
+
+    pub fn mmap(&mut self, start: usize, pages: usize, port: usize) -> isize{
+        for page in 0..pages{
+            let va: VirtAddr = (start + page * PAGE_SIZE).into();
+            if !va.aligned() {return -1;}
+            let vpn: VirtPageNum = VirtPageNum::from(va);
+            //debug!("check vpn {:?}", vpn);
+            if let Some(pte) = self.page_table.translate(vpn){
+                if pte.is_valid(){
+                    //debug!("allocated va vpn {:?} {:?}", va, vpn);
+                    return -1;
+                }
+            }
+        }
+
+        let mut pteflag = PTEFlags::empty();
+        if port & 1 != 0 {pteflag |= PTEFlags::R};
+        if port & 2 != 0 {pteflag |= PTEFlags::W};
+        if port & 4 != 0 {pteflag |= PTEFlags::X};
+        pteflag |= PTEFlags::U;
+        pteflag |= PTEFlags::V;
+
+
+        for page in 0..pages{
+            let va: VirtAddr = (start + page * PAGE_SIZE).into();
+            if !va.aligned() {return -1;}
+            let vpn: VirtPageNum = VirtPageNum::from(va);
+            if let Some(ppn) = frame_alloc() {
+                //debug!("try to map vpn {:?} to ppn {:?}", vpn, ppn);
+                self.page_table.map(vpn, ppn.ppn, pteflag);
+                // record the pages allocated in some way?
+            } else {
+                //debug!("failed to allocate for vpn {:?} {:?}", va, vpn);
+                return -1;
+            } 
+        }
+        0
+    }
+
+    pub fn munmap(&mut self, start: usize, pages: usize) -> isize{
+        for page in 0..pages{
+            let va: VirtAddr = (start + page * PAGE_SIZE).into();
+            if !va.aligned() {return -1;}
+            let vpn: VirtPageNum = VirtPageNum::from(va);
+            if let Some(pte) = self.page_table.translate(vpn){
+                if !pte.is_valid(){
+                    //debug!("invalid vpn {:?}", va);
+                    return -1;
+                }
+            } else {
+                //debug!("unmaped vpn {:?}", va);
+                return -1;
+            }
+            self.page_table.unmap(vpn)
+        }
+        0
+    }
+
+
     /// Without kernel stacks.
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();

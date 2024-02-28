@@ -1,4 +1,6 @@
 //! Types related to task management
+
+use crate::config::MAX_SYSCALL_NUM;
 use super::TaskContext;
 use crate::config::TRAP_CONTEXT_BASE;
 use crate::mm::{
@@ -28,6 +30,12 @@ pub struct TaskControlBlock {
 
     /// Program break
     pub program_brk: usize,
+
+    /// starttime in ms
+    pub starttime: Option<usize>,
+    /// sys call time count for exercise in ch3
+    pub sys_call_times : [u32; MAX_SYSCALL_NUM]
+
 }
 
 impl TaskControlBlock {
@@ -63,6 +71,8 @@ impl TaskControlBlock {
             base_size: user_sp,
             heap_bottom: user_sp,
             program_brk: user_sp,
+            starttime : None,
+            sys_call_times : [0; MAX_SYSCALL_NUM]
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.get_trap_cx();
@@ -96,6 +106,7 @@ impl TaskControlBlock {
             None
         }
     }
+
 }
 
 #[derive(Copy, Clone, PartialEq)]

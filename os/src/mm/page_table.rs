@@ -1,9 +1,11 @@
 //! Implementation of [`PageTableEntry`] and [`PageTable`].
 
-use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use alloc::collections::binary_heap::IntoIter;
 use alloc::vec;
 use alloc::vec::Vec;
 use bitflags::*;
+use riscv::addr::PhysicalAddress;
 
 bitflags! {
     /// page table entry flags
@@ -170,4 +172,16 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
         start = end_va.into();
     }
     v
+}
+
+/// call translated_byte_buffer and copy u8 into it byte by byte
+pub fn copy_into_translated_byte_buffer(token: usize, ptr: *const u8, len: usize, src : impl IntoIterator<Item = u8>){
+    let dst = translated_byte_buffer(token, ptr, len);
+    let mut src_iter = src.into_iter();
+
+    for slice in dst{
+        for byte in slice{
+            *byte = src_iter.next().unwrap();
+        }
+    }
 }

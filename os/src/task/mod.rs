@@ -14,8 +14,11 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::loader::{get_app_data, get_num_app};
+use crate::{loader::get_num_app, loader::get_app_data};
 use crate::sync::UPSafeCell;
+use crate::syscall::process::TaskInfo;
+use crate::timer::get_time_ms;
+
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
 use lazy_static::*;
@@ -53,11 +56,14 @@ lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
         println!("init TASK_MANAGER");
         let num_app = get_num_app();
+
         println!("num_app = {}", num_app);
         let mut tasks: Vec<TaskControlBlock> = Vec::new();
         for i in 0..num_app {
             tasks.push(TaskControlBlock::new(get_app_data(i), i));
         }
+        
+    
         TaskManager {
             num_app,
             inner: unsafe {
@@ -79,6 +85,9 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
+        if next_task.starttime.is_none(){
+            next_task.starttime = Some(get_time_ms())
+        }
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -94,6 +103,24 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let cur = inner.current_task;
         inner.tasks[cur].task_status = TaskStatus::Ready;
+    }
+
+    /// for exercise in ch3
+    pub fn get_current_task_control_block(&self) -> TaskInfo{
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        TaskInfo{
+            status: inner.tasks[current].task_status.clone(),
+            syscall_times: inner.tasks[current].sys_call_times.clone(),
+            time: inner.tasks[current].starttime.clone().unwrap(), 
+        }
+    }
+
+    /// update_sys_call_count
+    pub fn update_sys_call_count(&self, syscall_number : usize) -> (){
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].sys_call_times[syscall_number] += 1;
     }
 
     /// Change the status of current `Running` task into `Exited`.
@@ -140,6 +167,9 @@ impl TaskManager {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
+            if inner.tasks[next].starttime.is_none(){
+                inner.tasks[next].starttime = Some(get_time_ms())
+            }
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
@@ -152,6 +182,17 @@ impl TaskManager {
         } else {
             panic!("All applications completed!");
         }
+    }
+
+    pub fn mmap(&self, start: usize, pages: usize, port: usize) -> isize{
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].memory_set.mmap(start, pages, port)
+    }
+    pub fn munmap(&self, start: usize, pages: usize) -> isize{
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].memory_set.munmap(start, pages)
     }
 }
 
