@@ -43,7 +43,7 @@ pub struct TimerCondVar {
     /// The time when the timer expires, in milliseconds
     pub expire_ms: usize,
     /// The task to be woken up when the timer expires
-    pub task: Arc<TaskControlBlock>,
+    pub task: Arc<Block>,
 }
 
 impl PartialEq for TimerCondVar {
