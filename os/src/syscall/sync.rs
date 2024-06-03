@@ -232,9 +232,9 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
     process_inner
         .get_semaphore_check()
         .modify_need(tid, sem_id, false);
-    // process_inner
-    //     .get_semaphore_check()
-    //     .modify_allocation(tid, sem_id, true);
+    process_inner
+        .get_semaphore_check()
+        .modify_allocation(tid, sem_id, true);
     process_inner
         .get_semaphore_check()
         .modify_available(sem_id, false);
