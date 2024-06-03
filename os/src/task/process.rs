@@ -15,6 +15,8 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefMut;
 
+use super::deadlock::DeadlockDetect;
+
 /// Process Control Block
 pub struct ProcessControlBlock {
     /// immutable
@@ -49,6 +51,12 @@ pub struct ProcessControlBlockInner {
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
     /// condvar list
     pub condvar_list: Vec<Option<Arc<Condvar>>>,
+    /// enable deadlock detect
+    pub enable_deadlock_detect: bool,
+    /// check for mutex deadlock
+    pub mutex_check : DeadlockDetect,
+    /// check for semaphore deadlock
+    pub semaphore_check : DeadlockDetect
 }
 
 impl ProcessControlBlockInner {
@@ -57,6 +65,15 @@ impl ProcessControlBlockInner {
     pub fn get_user_token(&self) -> usize {
         self.memory_set.token()
     }
+
+    pub fn get_mutex_check(&mut self) -> &mut DeadlockDetect{
+        return &mut self.mutex_check;
+    }
+
+    pub fn get_semaphore_check(&mut self) -> &mut DeadlockDetect{
+        return &mut self.semaphore_check;
+    }
+
     /// allocate a new file descriptor
     pub fn alloc_fd(&mut self) -> usize {
         if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
@@ -119,6 +136,9 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    enable_deadlock_detect : false,
+                    mutex_check : DeadlockDetect::new(),
+                    semaphore_check : DeadlockDetect::new()
                 })
             },
         });
@@ -245,6 +265,9 @@ impl ProcessControlBlock {
                     mutex_list: Vec::new(),
                     semaphore_list: Vec::new(),
                     condvar_list: Vec::new(),
+                    enable_deadlock_detect : false,
+                    mutex_check : DeadlockDetect::new(),
+                    semaphore_check : DeadlockDetect::new()
                 })
             },
         });
