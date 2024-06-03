@@ -274,3 +274,21 @@ impl Iterator for UserBufferIterator {
         }
     }
 }
+
+/// call translated_byte_buffer and copy u8 into it byte by byte
+pub fn copy_into_translated_byte_buffer(
+    token: usize,
+    ptr: *const u8,
+    len: usize,
+    src: impl IntoIterator<Item = u8>,
+) {
+    let dst = translated_byte_buffer(token, ptr, len);
+    let mut src_iter = src.into_iter();
+
+    for slice in dst {
+        for byte in slice {
+            *byte = src_iter.next().unwrap();
+        }
+    }
+}
+

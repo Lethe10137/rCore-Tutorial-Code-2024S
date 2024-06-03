@@ -9,6 +9,11 @@ use crate::{
 };
 use alloc::{string::String, sync::Arc, vec::Vec};
 
+use crate::timer::get_time_us;
+
+use crate::mm::copy_into_translated_byte_buffer;
+use core::mem;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct TimeVal {
@@ -162,13 +167,33 @@ pub fn sys_kill(pid: usize, signal: u32) -> isize {
 /// YOUR JOB: get time with second and microsecond
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
-pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
-        current_task().unwrap().process.upgrade().unwrap().getpid()
-    );
-    -1
+// pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
+//     trace!(
+//         "kernel:pid[{}] sys_get_time NOT IMPLEMENTED",
+//         current_task().unwrap().process.upgrade().unwrap().getpid()
+//     );
+//     -1
+// }
+
+pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
+    trace!("kernel: sys_get_time");
+    let us = get_time_us();
+
+    let result = TimeVal {
+        sec: us / 1_000_000,
+        usec: us % 1_000_000,
+    };
+
+    let reuslt_in_bytes: [u8; mem::size_of::<TimeVal>()] =
+        unsafe { mem::transmute::<TimeVal, [u8; mem::size_of::<TimeVal>()]>(result) };
+
+    let len = mem::size_of::<TimeVal>();
+
+    copy_into_translated_byte_buffer(current_user_token(), ts as *const u8, len, reuslt_in_bytes);
+
+    0
 }
+
 
 /// task_info syscall
 ///

@@ -23,6 +23,8 @@ pub use page_table::{
     PageTableEntry, UserBuffer, UserBufferIterator,
 };
 
+pub use page_table::copy_into_translated_byte_buffer;
+
 /// initiate heap allocator, frame allocator and kernel space
 pub fn init() {
     heap_allocator::init_heap();
